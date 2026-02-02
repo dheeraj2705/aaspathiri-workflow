@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hospital Workflow Automation Portal</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <div class="logo">H</div>
+        <div>
+          <h1>Hospital Workflow Automation</h1>
+          <p class="subtitle">Base portal UI (non-clinical)</p>
+        </div>
+      </div>
+      <nav class="actions">
+        <button class="btn">Admin</button>
+        <button class="btn btn-primary">Sign in</button>
+      </nav>
+    </header>
+
+    <div class="layout">
+      <aside class="sidebar">
+        <h2>Modules</h2>
+        <ul class="nav">
+          <li><button class="nav-item active" data-section="overview">Overview</button></li>
+          <li><button class="nav-item" data-section="scheduling">Scheduling</button></li>
+          <li><button class="nav-item" data-section="shifts">Shift Management</button></li>
+          <li><button class="nav-item" data-section="rooms">Rooms & OT</button></li>
+          <li><button class="nav-item" data-section="documents">SOP Documents</button></li>
+          <li><button class="nav-item" data-section="ai">AI Assistant</button></li>
+          <li><button class="nav-item" data-section="ml">ML Insights</button></li>
+          <li><button class="nav-item" data-section="audit">Audit Logs</button></li>
+        </ul>
+      </aside>
+
+      <main class="content">
+        <section id="overview" class="section active">
+          <h2>Welcome</h2>
+          <p class="muted">
+            This is a minimal frontend scaffold to align team modules. Each section
+            is a placeholder for your feature implementation.
+          </p>
+          <div class="grid">
+            <div class="card">
+              <h3>Scheduling</h3>
+              <p>Appointments, staff load, and demand signals.</p>
+              <span class="tag">Team A</span>
+            </div>
+            <div class="card">
+              <h3>Shifts</h3>
+              <p>Shift planning, constraints, and staffing rules.</p>
+              <span class="tag">Team B</span>
+            </div>
+            <div class="card">
+              <h3>Rooms & OT</h3>
+              <p>Availability, utilization, and resource tracking.</p>
+              <span class="tag">Team C</span>
+            </div>
+            <div class="card">
+              <h3>AI + ML</h3>
+              <p>Safe RAG assistant and forecasting outputs.</p>
+              <span class="tag">Team D</span>
+            </div>
+          </div>
+        </section>
+
+        <section id="scheduling" class="section">
+          <h2>Scheduling</h2>
+          <p class="muted">Placeholder for appointment scheduling UI.</p>
+          <div class="placeholder">Module under construction</div>
+        </section>
+
+        <section id="shifts" class="section">
+          <h2>Shift Management</h2>
+          <p class="muted">Placeholder for shift planning UI.</p>
+          <div class="placeholder">Module under construction</div>
+        </section>
+
+        <section id="rooms" class="section">
+          <h2>Rooms & OT</h2>
+          <p class="muted">Placeholder for room and OT availability UI.</p>
+          <div class="placeholder">Module under construction</div>
+        </section>
+
+        <section id="documents" class="section">
+          <h2>SOP Documents</h2>
+          <p class="muted">Placeholder for document upload and listing UI.</p>
+          <div class="placeholder">Module under construction</div>
+        </section>
+
+        <section id="ai" class="section">
+          <h2>AI Assistant</h2>
+          <p class="muted">Placeholder for RAG assistant UI.</p>
+          <div class="placeholder">Module under construction</div>
+        </section>
+
+        <section id="ml" class="section">
+          <h2>ML Insights</h2>
+          <p class="muted">Placeholder for forecasting and optimization UI.</p>
+          <div class="placeholder">Module under construction</div>
+        </section>
+
+        <section id="audit" class="section">
+          <h2>Audit Logs</h2>
+          <p class="muted">Placeholder for audit log UI.</p>
+          <div class="placeholder">Module under construction</div>
+        </section>
+      </main>
+    </div>
+
+    <footer class="footer">
+      <span>Hospital Workflow Automation Portal • Base UI</span>
+    </footer>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
