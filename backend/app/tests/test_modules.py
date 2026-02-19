@@ -5,11 +5,11 @@ import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../")))
 
 from datetime import datetime, timedelta
-from app.core.conflict_detection import check_time_overlap, validate_doctor_availability, validate_ot_availability, validate_shift_overlap
+from app.core.conflict_detection import check_time_overlap, validate_doctor_availability, validate_shift_overlap  # validate_ot_availability commented out
 from app.core.db import SessionLocal, Base, engine
 from app.models.users import User, UserRole
 from app.models.appointment import Appointment, AppointmentStatus, DoctorAvailability
-from app.models.room import Room, OTSlot, OTSlotStatus, RoomType
+from app.models.room import Room, RoomType  # OTSlot, OTSlotStatus commented out
 from app.models.shift import Shift, StaffShiftAssignment, ShiftType
 
 def test_conflict_detection_logic():

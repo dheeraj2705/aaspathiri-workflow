@@ -1,12 +1,19 @@
 from fastapi import FastAPI
 from app.core.config import settings
 from app.core.db import engine, Base
+import app.models  # noqa: F401 — ensure all models are registered with Base
+from app.auth import router as auth_router
 from app.scheduling import router as scheduling_router
 from app.rooms import router as rooms_router
 from app.shifts import router as shifts_router
+from app.users import router as users_router
+from app.ml import router as ml_router
 
-# Create tables on startup (for dev/demo purposes)
-Base.metadata.create_all(bind=engine)
+# NOTE:
+# For Supabase/managed Postgres in production, we avoid calling
+# Base.metadata.create_all(bind=engine) on import, since that will crash
+# the app if the database is temporarily unavailable.
+# Use migrations or run create_all separately instead.
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -15,9 +22,15 @@ app = FastAPI(
     version="0.1.0",
 )
 
-app.include_router(scheduling_router.router, prefix="/appointments", tags=["appointments"])
-app.include_router(rooms_router.router, prefix="/rooms", tags=["rooms"])
-app.include_router(shifts_router.router, prefix="/shifts", tags=["shifts"])
+# All routers mounted under /api/v1
+app.include_router(auth_router.router, prefix=settings.API_V1_STR, tags=["auth"])
+app.include_router(users_router.router, prefix=f"{settings.API_V1_STR}/users", tags=["users"])
+app.include_router(scheduling_router.router, prefix=f"{settings.API_V1_STR}/appointments", tags=["appointments"])
+app.include_router(rooms_router.router, prefix=f"{settings.API_V1_STR}/rooms", tags=["rooms"])
+app.include_router(shifts_router.router, prefix=f"{settings.API_V1_STR}/shifts", tags=["shifts"])
+app.include_router(ml_router.router, prefix=f"{settings.API_V1_STR}/ml", tags=["ml"])
+from app.health import router as health_router
+app.include_router(health_router.router, prefix=settings.API_V1_STR, tags=["health"])
 
 
 @app.get("/")

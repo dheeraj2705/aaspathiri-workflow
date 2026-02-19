@@ -1,16 +1,8 @@
-from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
-from app.core.config import settings
+"""Compatibility layer that re-exports the central DB objects.
 
-engine = create_engine(str(settings.SQLALCHEMY_DATABASE_URI))
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+All code should go through this module, but the actual engine
+configuration lives in app.db.db so there is a single source of truth.
+"""
 
-Base = declarative_base()
+from app.db.db import engine, SessionLocal, Base, get_db  # noqa: F401
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()

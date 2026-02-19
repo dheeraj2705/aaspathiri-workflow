@@ -1,42 +1,52 @@
 from typing import List, Any
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.core import deps
-from app.models.users import User, UserRole
-from app.models.appointment import Appointment, DoctorAvailability
-from app.schemas import appointment as schemas
 from app.core.conflict_detection import validate_doctor_availability
+from app.models.appointment import Appointment, AppointmentStatus, DoctorAvailability
+from app.models.users import User, UserRole
+from app.schemas import appointment as schemas
 
 router = APIRouter()
+
 
 @router.post("/", response_model=schemas.Appointment)
 def create_appointment(
     *,
     db: Session = Depends(deps.get_db),
     appointment_in: schemas.AppointmentCreate,
-    current_user: User = Depends(deps.get_current_active_user),
+    current_user: User = Depends(deps.require_role([UserRole.ADMIN, UserRole.DOCTOR])),
 ) -> Any:
     """
-    Create new appointment.
+    Create new appointment (Admin or Doctor only).
     """
-    # Verify availability
     is_available = validate_doctor_availability(
-        db, appointment_in.doctor_id, appointment_in.start_time, appointment_in.end_time
+        db,
+        appointment_in.doctor_id,
+        appointment_in.appointment_date,
+        appointment_in.start_time,
+        appointment_in.end_time,
     )
     if not is_available:
-        raise HTTPException(status_code=400, detail="Doctor is not available at this time.")
+        raise HTTPException(status_code=400, detail="Doctor is not available at the requested time.")
 
-    appointment = Appointment(
-        patient_id=appointment_in.patient_id,
-        doctor_id=appointment_in.doctor_id,
-        start_time=appointment_in.start_time,
-        end_time=appointment_in.end_time,
-        notes=appointment_in.notes,
-    )
+    # Prevent non-admins from booking in the past (IST)
+    today_ist = datetime.now(ZoneInfo("Asia/Kolkata")).date()
+    if (
+        current_user.role != UserRole.ADMIN
+        and appointment_in.appointment_date < today_ist
+    ):
+        raise HTTPException(status_code=400, detail="Appointment date cannot be in the past.")
+
+    appointment = Appointment(**appointment_in.model_dump())
     db.add(appointment)
     db.commit()
     db.refresh(appointment)
     return appointment
+
 
 @router.get("/", response_model=List[schemas.Appointment])
 def read_appointments(
@@ -47,15 +57,18 @@ def read_appointments(
 ) -> Any:
     """
     Retrieve appointments.
-    Doctors see their own. Admins/HR see all? Rules say Doctor: View appointments. 
-    Assuming Doctor sees strict own, Admin sees all.
+    Admin sees all. Doctor sees own. Others get 403.
     """
-    if current_user.role == UserRole.DOCTOR:
-        appointments = db.query(Appointment).filter(Appointment.doctor_id == current_user.id).offset(skip).limit(limit).all()
-    else:
-        # Admin or others
+    if current_user.role == UserRole.ADMIN:
         appointments = db.query(Appointment).offset(skip).limit(limit).all()
+    elif current_user.role == UserRole.DOCTOR:
+        appointments = db.query(Appointment).filter(
+            Appointment.doctor_id == current_user.id
+        ).offset(skip).limit(limit).all()
+    else:
+        raise HTTPException(status_code=403, detail="Not enough privileges")
     return appointments
+
 
 @router.put("/{appointment_id}", response_model=schemas.Appointment)
 def update_appointment(
@@ -63,36 +76,72 @@ def update_appointment(
     db: Session = Depends(deps.get_db),
     appointment_id: int,
     appointment_in: schemas.AppointmentUpdate,
-    current_user: User = Depends(deps.get_current_active_user),
+    current_user: User = Depends(deps.require_role([UserRole.ADMIN, UserRole.DOCTOR])),
 ) -> Any:
     """
-    Update an appointment.
+    Update an appointment (Admin or Doctor for own appointment only).
     """
     appointment = db.query(Appointment).filter(Appointment.id == appointment_id).first()
     if not appointment:
         raise HTTPException(status_code=404, detail="Appointment not found")
-    
-    # Check permissions? Assuming open for now for simplicity, or restricted to Doctor/Admin.
-    
-    if appointment_in.start_time and appointment_in.end_time:
-        # Validate new time
+
+    # Doctor can only update own appointments
+    if current_user.role == UserRole.DOCTOR and appointment.doctor_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not your appointment")
+
+    if appointment_in.appointment_date or appointment_in.start_time or appointment_in.end_time:
+        new_date = appointment_in.appointment_date or appointment.appointment_date
+        new_start = appointment_in.start_time or appointment.start_time
+        new_end = appointment_in.end_time or appointment.end_time
+
         is_available = validate_doctor_availability(
-            db, appointment.doctor_id, appointment_in.start_time, appointment_in.end_time
+            db,
+            appointment.doctor_id,
+            new_date,
+            new_start,
+            new_end,
         )
         if not is_available:
-             raise HTTPException(status_code=400, detail="Doctor is not available at the new time.")
-        appointment.start_time = appointment_in.start_time
-        appointment.end_time = appointment_in.end_time
-        
-    if appointment_in.status:
-        appointment.status = appointment_in.status
-    if appointment_in.notes:
-        appointment.notes = appointment_in.notes
-        
+            raise HTTPException(status_code=400, detail="Doctor is not available at the new time.")
+        appointment.appointment_date = new_date
+        appointment.start_time = new_start
+        appointment.end_time = new_end
+
+    update_data = appointment_in.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        if field in {"appointment_date", "start_time", "end_time"}:
+            continue  # already applied above
+        setattr(appointment, field, value)
+
     db.add(appointment)
     db.commit()
     db.refresh(appointment)
     return appointment
+
+
+@router.delete("/{appointment_id}", response_model=schemas.Appointment)
+def cancel_appointment(
+    *,
+    db: Session = Depends(deps.get_db),
+    appointment_id: int,
+    current_user: User = Depends(deps.require_role([UserRole.ADMIN, UserRole.DOCTOR])),
+) -> Any:
+    """
+    Cancel an appointment (soft delete via status change).
+    """
+    appointment = db.query(Appointment).filter(Appointment.id == appointment_id).first()
+    if not appointment:
+        raise HTTPException(status_code=404, detail="Appointment not found")
+
+    if current_user.role == UserRole.DOCTOR and appointment.doctor_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not your appointment")
+
+    appointment.status = AppointmentStatus.CANCELLED
+    db.add(appointment)
+    db.commit()
+    db.refresh(appointment)
+    return appointment
+
 
 @router.post("/availability", response_model=schemas.Availability)
 def create_availability(
@@ -104,7 +153,7 @@ def create_availability(
     """
     Set doctor availability.
     """
-    availability = DoctorAvailability(**availability_in.dict())
+    availability = DoctorAvailability(**availability_in.model_dump())
     db.add(availability)
     db.commit()
     db.refresh(availability)
